@@ -17,16 +17,21 @@ def get_tasks(current_user: User = Depends(get_current_user)):
     tasks = load_tasks()
     if current_user.role == "admin":
         return tasks
-    return [t for t in tasks if t["owner"] == current_user.username]
+    # 同时检查 user_id 和 owner 以实现向后兼容
+    return [t for t in tasks if t.get("user_id") == current_user.username or t.get("owner") == current_user.username]
 
 
 @router.post("/tasks", response_model=Task)
 def create_task(task_data: TaskCreate, current_user: User = Depends(get_current_user)):
     tasks = load_tasks()
+    task_dict = task_data.dict()
+    if 'user_id' not in task_dict or task_dict['user_id'] is None:
+        task_dict['user_id'] = current_user.username
+
     task = Task(
         id=generate_id(),
-        **task_data.dict(),
-        owner=current_user.username,
+        **task_dict,
+        owner=current_user.username, # owner 字段保留，用于向后兼容或特定业务逻辑
         created_at=now_iso()
     )
     tasks.append(task.dict())
