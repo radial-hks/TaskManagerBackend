@@ -8,5 +8,10 @@
     "username": "user1",
     "password_hash": "$2b$12$8tLZjtzM3ycbxAeWmDbPSOHptcIo7vIGpO62AThzXtUjGyaMldcxu",
     "role": "user"
+  },
+  {
+    "username": "radial",
+    "password_hash": "$2b$12$QGxZeIsUymhjdwecPCfKN.NI13Jg8HjANAvNcdKk2QQmSYLx31ix6",
+    "role": "user"
   }
 ]

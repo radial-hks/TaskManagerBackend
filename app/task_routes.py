@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query
-from .models import Task, User
+from .models import Task, User, TaskCreate, TaskUpdate
 from .utils import generate_id, now_iso
 from .storage import load_tasks, save_tasks
 from .auth import get_current_user
@@ -20,18 +20,13 @@ def get_tasks(current_user: User = Depends(get_current_user)):
     return [t for t in tasks if t["owner"] == current_user.username]
 
 
-@router.post("/tasks")
-def create_task(task_data: dict, current_user: User = Depends(get_current_user)):
+@router.post("/tasks", response_model=Task)
+def create_task(task_data: TaskCreate, current_user: User = Depends(get_current_user)):
     tasks = load_tasks()
     task = Task(
         id=generate_id(),
-        title=task_data["title"],
-        description=task_data.get("description", ""),
-        priority=task_data.get("priority", "medium"),
+        **task_data.dict(),
         owner=current_user.username,
-        category=task_data.get("category", "未分类"),
-        tags=task_data.get("tags", []),
-        audio_file=None,
         created_at=now_iso()
     )
     tasks.append(task.dict())
@@ -39,17 +34,25 @@ def create_task(task_data: dict, current_user: User = Depends(get_current_user))
     return task
 
 
-@router.put("/tasks/{task_id}")
-def update_task(task_id: str, update_data: dict, current_user: User = Depends(get_current_user)):
+@router.put("/tasks/{task_id}", response_model=Task)
+def update_task(task_id: str, update_data: TaskUpdate, current_user: User = Depends(get_current_user)):
     tasks = load_tasks()
-    for task in tasks:
-        if task["id"] == task_id:
-            if current_user.role != "admin" and task["owner"] != current_user.username:
-                raise HTTPException(status_code=403)
-            task.update(update_data)
-            save_tasks(tasks)
-            return task
-    raise HTTPException(status_code=404)
+    task_index = next((i for i, t in enumerate(tasks) if t["id"] == task_id), None)
+
+    if task_index is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = tasks[task_index]
+    if current_user.role != "admin" and task["owner"] != current_user.username:
+        raise HTTPException(status_code=403, detail="Not authorized to update this task")
+
+    update_data_dict = update_data.dict(exclude_unset=True)
+    for key, value in update_data_dict.items():
+        task[key] = value
+
+    tasks[task_index] = task
+    save_tasks(tasks)
+    return task
 
 
 @router.post("/tasks/{task_id}/upload")
