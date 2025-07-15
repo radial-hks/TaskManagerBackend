@@ -51,7 +51,7 @@ def create_task(task_data: TaskCreate, current_user: User = Depends(get_current_
     tasks = load_tasks()
     task_dict = task_data.dict()
     if 'user_id' not in task_dict or task_dict['user_id'] is None:
-        task_dict['user_id'] = current_user.username
+        task_dict['user_id'] = current_user.id
 
     task = Task(
         id=generate_id(),
