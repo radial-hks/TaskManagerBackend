@@ -21,6 +21,10 @@ RUN pip install -r requirements.txt
 
 # 复制应用代码
 COPY ./app /app/app
+COPY ./data /app/data
+
+# 创建日志和录音目录
+RUN mkdir -p /app/log /app/recordings
 
 # 暴露端口
 EXPOSE 8000
