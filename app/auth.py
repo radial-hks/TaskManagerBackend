@@ -39,14 +39,17 @@ def register(form: OAuth2PasswordRequestForm = Depends()):
     users = load_users()
     if any(u["username"] == form.username for u in users):
         raise HTTPException(status_code=400, detail="Username exists")
-    user = {
-        "username": form.username,
-        "password_hash": hash_password(form.password),
-        "role": "user"
-    }
-    users.append(user)
+    
+    # 使用 User 模型创建新用户，自动生成 UUID
+    new_user = User(
+        username=form.username,
+        password_hash=hash_password(form.password),
+        role="user"
+    )
+    
+    users.append(new_user.dict())
     save_users(users)
-    return {"msg": "Registered"}
+    return {"msg": "Registered", "user_id": new_user.id}
 
 
 @router.post("/login")

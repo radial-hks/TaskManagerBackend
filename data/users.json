@@ -1,15 +1,18 @@
 [
   {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
     "username": "admin",
     "password_hash": "$2b$12$3RCXwqgPIEVdcKyoGDr2tOmLbRHfEj35PBsT8OayWmHLR0Kk4Nz/q",
     "role": "admin"
   },
   {
+    "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
     "username": "user1",
     "password_hash": "$2b$12$8tLZjtzM3ycbxAeWmDbPSOHptcIo7vIGpO62AThzXtUjGyaMldcxu",
     "role": "user"
   },
   {
+    "id": "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
     "username": "radial",
     "password_hash": "$2b$12$QGxZeIsUymhjdwecPCfKN.NI13Jg8HjANAvNcdKk2QQmSYLx31ix6",
     "role": "user"

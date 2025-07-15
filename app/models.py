@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
+import uuid
 
 class TaskStatus(str, Enum):
     PENDING = "pending"                    # 已创建，待处理
@@ -15,6 +16,7 @@ class TaskStatus(str, Enum):
     ARCHIVED = "archived"                  # 已归档，不再显示在默认列表中
 
 class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     username: str
     password_hash: str
     role: str = "user"
