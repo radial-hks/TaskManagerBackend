@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    volumes:
+      - ./app:/app/app   # 代码实时同步
+      - ./data:/app/data # 数据实时同步
+      - /app/log         # 日志建议不挂载（避免权限问题）
+      - /app/recordings
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
