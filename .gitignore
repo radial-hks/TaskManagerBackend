@@ -10,3 +10,15 @@ wheels/
 .venv
 *.log
 *.old
+
+# Nginx 
+*.pem
+*.crt
+*.key
+*.csr
+*.p12
+
+# file
+recordings/*
+
+local/

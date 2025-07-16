@@ -1,11 +1,18 @@
 services:
-  web:
+  app:
     build: .
     volumes:
-      - ./app:/app/app   # 代码实时同步
-      - ./data:/app/data # 数据实时同步
-      - /app/log         # 日志建议不挂载（避免权限问题）
-      - /app/recordings
-    ports:
-      - "8000:8000"
+      - .:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/nginx-selfsigned.crt:/etc/nginx/certs/nginx-selfsigned.crt
+      - ./nginx/nginx-selfsigned.key:/etc/nginx/certs/nginx-selfsigned.key
+    depends_on:
+      - app
