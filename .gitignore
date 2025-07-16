@@ -20,5 +20,7 @@ wheels/
 
 # file
 recordings/*
+data/
 
 local/
+data/*

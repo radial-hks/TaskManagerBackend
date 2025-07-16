@@ -21,6 +21,12 @@ class User(BaseModel):
     password_hash: str
     role: str = "user"
 
+class Transcription(BaseModel):
+    raw_text: str
+    optimized_text: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
 class Task(BaseModel):
     id: str
     title: str
@@ -31,7 +37,8 @@ class Task(BaseModel):
     user_id: Optional[str] = None  # 用户唯一标识，可与用户模型中 UUID 对应
     category: Optional[str] = "未分类"
     tags: Optional[List[str]] = []
-    audio_file: Optional[str] = None
+    audio_files: Optional[List[str]] = []
+    transcription: Optional[Transcription] = None
     created_at: str
 
 
@@ -42,6 +49,7 @@ class TaskCreate(BaseModel):
     category: Optional[str] = "未分类"
     tags: Optional[List[str]] = []
     user_id: Optional[str] = None
+    audio_files: Optional[List[str]] = []
 
 
 class TaskUpdate(BaseModel):
@@ -52,3 +60,5 @@ class TaskUpdate(BaseModel):
     category: Optional[str] = None
     tags: Optional[List[str]] = None
     user_id: Optional[str] = None
+    transcription: Optional[Transcription] = None
+    audio_files: Optional[List[str]] = None

@@ -7,6 +7,7 @@ from typing import Optional, List
 from pathlib import Path
 import shutil
 import logging
+import uuid
 from logging.handlers import RotatingFileHandler
 
 # 配置日志
@@ -34,15 +35,15 @@ AUDIO_DIR.mkdir(exist_ok=True)
 
 
 @router.get("/tasks")
-def get_tasks(current_user: User = Depends(get_current_user)):
-    logger.info(f"User {current_user.username} fetching tasks.")
+def get_tasks(current_user: User = Depends(get_current_user), skip: int = 0, limit: int = 10):
+    logger.info(f"User {current_user.username} fetching tasks with skip={skip} and limit={limit}.")
     tasks = load_tasks()
     if current_user.role == "admin":
         logger.info(f"Admin user {current_user.username} fetching all tasks.")
-        return tasks
+        return tasks[skip : skip + limit]
     user_tasks = [t for t in tasks if t.get("user_id") == current_user.username or t.get("owner") == current_user.username]
     logger.info(f"User {current_user.username} fetched {len(user_tasks)} tasks.")
-    return user_tasks
+    return user_tasks[skip : skip + limit]
 
 
 @router.post("/tasks", response_model=Task)
@@ -91,28 +92,88 @@ def update_task(task_id: str, update_data: TaskUpdate, current_user: User = Depe
 
 
 @router.post("/tasks/{task_id}/upload")
-def upload_audio(task_id: str, file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+def upload_audio(task_id: str, files: List[UploadFile] = File(...), current_user: User = Depends(get_current_user)):
     logger.info(f"User {current_user.username} uploading audio for task {task_id}.")
     tasks = load_tasks()
+    task_found = False
     for task in tasks:
         if task["id"] == task_id:
+            task_found = True
             if current_user.role != "admin" and task["owner"] != current_user.username:
                 logger.error(f"User {current_user.username} not authorized to upload audio for task {task_id}.")
                 raise HTTPException(status_code=403)
-            ext = Path(file.filename).suffix
-            dest = AUDIO_DIR / f"{task_id}{ext}"
-            try:
-                with dest.open("wb") as f:
-                    shutil.copyfileobj(file.file, f)
-                task["audio_file"] = str(dest)
-                save_tasks(tasks)
-                logger.info(f"Audio for task {task_id} uploaded successfully to {dest}.")
-                return {"msg": "Uploaded", "path": str(dest)}
-            except Exception as e:
-                logger.error(f"Error uploading audio for task {task_id}: {e}")
-                raise HTTPException(status_code=500, detail="Audio upload failed.")
-    logger.warning(f"Task {task_id} not found for audio upload attempt by user {current_user.username}.")
-    raise HTTPException(status_code=404)
+
+            uploaded_files = []
+            for file in files:
+                ext = Path(file.filename).suffix
+                unique_filename = f"{uuid.uuid4()}{ext}"
+                dest = AUDIO_DIR / unique_filename
+                try:
+                    with dest.open("wb") as f:
+                        shutil.copyfileobj(file.file, f)
+                    uploaded_files.append(str(dest))
+                except Exception as e:
+                    logger.error(f"Error uploading audio for task {task_id}: {e}")
+                    raise HTTPException(status_code=500, detail="Audio upload failed.")
+
+            if "audio_files" not in task or not task["audio_files"]:
+                task["audio_files"] = []
+            task["audio_files"].extend(uploaded_files)
+            save_tasks(tasks)
+            logger.info(f"Audio for task {task_id} uploaded successfully to {uploaded_files}.")
+            return {"msg": "Uploaded", "paths": uploaded_files}
+
+    if not task_found:
+        logger.warning(f"Task {task_id} not found for audio upload attempt by user {current_user.username}.")
+        raise HTTPException(status_code=404)
+
+
+@router.delete("/tasks/{task_id}/files")
+def delete_audio_files(task_id: str, file_paths: List[str], current_user: User = Depends(get_current_user)):
+    logger.info(f"User {current_user.username} requesting to delete files for task {task_id}.")
+    tasks = load_tasks()
+    task_found = False
+    for task in tasks:
+        if task["id"] == task_id:
+            task_found = True
+            if current_user.role != "admin" and task["owner"] != current_user.username:
+                logger.error(f"User {current_user.username} not authorized to delete files for task {task_id}.")
+                raise HTTPException(status_code=403, detail="Not authorized to delete files for this task.")
+
+            if "audio_files" not in task or not task["audio_files"]:
+                raise HTTPException(status_code=404, detail="No audio files associated with this task.")
+
+            deleted_files = []
+            not_found_files = []
+            
+            original_audio_files = list(task["audio_files"])
+
+            for file_path_to_delete in file_paths:
+                if file_path_to_delete in original_audio_files:
+                    try:
+                        Path(file_path_to_delete).unlink(missing_ok=True)
+                        task["audio_files"].remove(file_path_to_delete)
+                        deleted_files.append(file_path_to_delete)
+                        logger.info(f"Deleted file {file_path_to_delete} for task {task_id}.")
+                    except Exception as e:
+                        logger.error(f"Error deleting file {file_path_to_delete} for task {task_id}: {e}")
+                else:
+                    not_found_files.append(file_path_to_delete)
+
+            if not deleted_files:
+                raise HTTPException(status_code=404, detail="None of the specified files were found for this task.")
+
+            save_tasks(tasks)
+            
+            response = {"msg": "Deletion process completed.", "deleted": deleted_files}
+            if not_found_files:
+                response["not_found"] = not_found_files
+            
+            return response
+
+    if not task_found:
+        logger.warning(f"Task {task_id} not found for file deletion attempt by user {current_user.username}.")
+        raise HTTPException(status_code=404, detail="Task not found.")
 
 
 @router.get("/tasks/search")
