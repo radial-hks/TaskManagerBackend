@@ -12,7 +12,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./nginx/nginx-selfsigned.crt:/etc/nginx/certs/nginx-selfsigned.crt
-      - ./nginx/nginx-selfsigned.key:/etc/nginx/certs/nginx-selfsigned.key
+      - ./nginx/apiyy.jay-zjy.cn.pem:/etc/nginx/certs/apiyy.jay-zjy.cn.pem
+      - ./nginx/apiyy.jay-zjy.cn.key:/etc/nginx/certs/apiyy.jay-zjy.cn.key
     depends_on:
       - app
