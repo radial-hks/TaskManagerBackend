@@ -27,38 +27,49 @@ class Transcription(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
-class Task(BaseModel):
+
+class TaskBase(BaseModel):
+    """
+    任务模型的基础部分，包含创建和读取时共有的字段。
+    """
+    title: str = Field(..., min_length=1, max_length=100, description="任务标题")
+    description: Optional[str] = Field(None, max_length=1000, description="任务的详细描述")
+    priority: Optional[str] = Field("medium", description="任务优先级")
+    category: Optional[str] = Field("未分类", description="任务分类")
+    tags: Optional[List[str]] = Field([], description="任务标签列表")
+    user_id: Optional[str] = Field(None, description="任务所属用户的ID")
+
+
+class TaskCreate(TaskBase):
+    """
+    用于创建任务的模型，继承自 TaskBase。
+    创建任务时不应直接提供音频文件，应在创建后上传。
+    """
+    pass
+
+
+class Task(TaskBase):
+    """
+    完整的任务模型，用于从数据库读取或API返回。
+    """
     id: str
-    title: str
-    description: str
-    priority: str
-    status: TaskStatus = TaskStatus.PENDING
     owner: str
-    user_id: Optional[str] = None  # 用户唯一标识，可与用户模型中 UUID 对应
-    category: Optional[str] = "未分类"
-    tags: Optional[List[str]] = []
+    status: TaskStatus = TaskStatus.PENDING
+    created_at: str
     audio_files: Optional[List[str]] = []
     transcription: Optional[Transcription] = None
-    created_at: str
-
-
-class TaskCreate(BaseModel):
-    title: str
-    description: Optional[str] = ""
-    priority: Optional[str] = "medium"
-    category: Optional[str] = "未分类"
-    tags: Optional[List[str]] = []
-    user_id: Optional[str] = None
-    audio_files: Optional[List[str]] = []
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
+    """
+    用于更新任务的模型，所有字段都是可选的。
+    """
+    title: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=1000)
     priority: Optional[str] = None
     status: Optional[TaskStatus] = None
     category: Optional[str] = None
     tags: Optional[List[str]] = None
-    user_id: Optional[str] = None
+    # user_id: Optional[str] = None  # 通常不应允许直接更新，除非有特定权限控制
     transcription: Optional[Transcription] = None
     audio_files: Optional[List[str]] = None

@@ -20,7 +20,7 @@ wheels/
 
 # file
 recordings/*
-data/
+data/*.json
 
 local/
 data/*

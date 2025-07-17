@@ -18,3 +18,5 @@ sudo docker run -d -p 8000:8000 --name fastapi-app -v "$(pwd)/data:/app/data" -v
 ```
 
 
+docker-compose up -d
+docker-compose down
