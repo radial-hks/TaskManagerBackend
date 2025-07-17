@@ -1,5 +1,6 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query
-from .models import Task, User, TaskCreate, TaskUpdate, TaskStatus
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, Form, Body
+from fastapi.responses import FileResponse, JSONResponse
+from .models import Task, User, TaskCreate, TaskUpdate, TaskStatus, AudioFile
 from .utils import generate_id, now_iso
 from .storage import load_tasks, save_tasks
 from .auth import get_current_user
@@ -134,13 +135,28 @@ def update_task(update_data: TaskUpdate, task: dict = Depends(get_task_for_user)
         raise HTTPException(status_code=500, detail="Internal Server Error during task update.")
 
 
-@router.post("/tasks/{task_id}/upload", response_model=Dict[str, List[str]])
-def upload_audio(files: List[UploadFile] = File(...), task: dict = Depends(get_task_for_user), current_user: User = Depends(get_current_user)):
+@router.post("/tasks/{task_id}/files/upload", response_model=List[AudioFile])
+def upload_audio(
+    task: dict = Depends(get_task_for_user),
+    files: List[UploadFile] = File(...),
+    user_filenames: Optional[List[str]] = Form(None),
+    current_user: User = Depends(get_current_user)
+):
     task_id = task['id']
-    logger.info(f"用户 {current_user.username} 正在为任务 {task_id} 上传音频文件。")
-    
-    uploaded_files = []
-    for file in files:
+    logger.info(f"用户 {current_user.username} 正在为任务 {task_id} 上传文件。")
+
+    if user_filenames and len(user_filenames) != len(files):
+        raise HTTPException(status_code=400, detail="The number of filenames does not match the number of files.")
+
+    tasks = load_tasks()
+    task_index = next((i for i, t in enumerate(tasks) if t["id"] == task_id), None)
+    if task_index is None:
+        raise HTTPException(status_code=404, detail="Task not found during upload.")
+
+    task_model = Task(**tasks[task_index])
+    newly_added_files = []
+
+    for i, file in enumerate(files):
         # 检查文件大小
         file.file.seek(0, 2)
         file_size = file.file.tell()
@@ -156,79 +172,180 @@ def upload_audio(files: List[UploadFile] = File(...), task: dict = Depends(get_t
             )
 
         ext = Path(file.filename).suffix
-        unique_filename = f"{task_id}_{uuid.uuid4()}{ext}"
-        dest = AUDIO_DIR / unique_filename
+        internal_filename = f"{task_id}_{uuid.uuid4()}{ext}"
+        dest_path = AUDIO_DIR / internal_filename
+
         try:
-            with dest.open("wb") as buffer:
+            with dest_path.open("wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
-            uploaded_files.append(str(dest))
         except Exception as e:
-            logger.error(f"为任务 {task_id} 上传文件 {file.filename} 时出错: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to upload {file.filename}.")
+            logger.error(f"保存文件失败: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to save file {file.filename}.")
 
-    tasks = load_tasks()
-    task_index = next((i for i, t in enumerate(tasks) if t["id"] == task_id), None)
-    if task_index is None:
-        raise HTTPException(status_code=404, detail="Task not found during upload process.")
+        user_filename = user_filenames[i] if user_filenames and user_filenames[i] else file.filename
+        
+        audio_file_model = AudioFile(
+            user_filename=user_filename,
+            internal_path=str(dest_path)
+        )
+        task_model.audio_files.append(audio_file_model)
+        newly_added_files.append(audio_file_model)
 
-    if "audio_files" not in tasks[task_index] or not tasks[task_index]["audio_files"]:
-        tasks[task_index]["audio_files"] = []
-    tasks[task_index]["audio_files"].extend(uploaded_files)
-    
+    tasks[task_index] = jsonable_encoder(task_model)
     save_tasks(tasks)
-    
-    logger.info(f"任务 {task_id} 的音频文件上传成功: {uploaded_files}。")
-    return {"paths": uploaded_files}
+
+    logger.info(f"为任务 {task_id} 成功上传 {len(newly_added_files)} 个文件。")
+    return newly_added_files
 
 
 @router.delete("/tasks/{task_id}/files")
-def delete_audio_files(file_paths: List[str], task: dict = Depends(get_task_for_user), current_user: User = Depends(get_current_user)):
+def delete_audio_files(
+    file_ids: List[str],
+    task: dict = Depends(get_task_for_user),
+    current_user: User = Depends(get_current_user)
+):
     task_id = task['id']
-    logger.info(f"用户 {current_user.username} 请求删除任务 {task_id} 的文件。")
+    logger.info(f"用户 {current_user.username} 请求删除任务 {task_id} 的文件：{file_ids}")
 
     tasks = load_tasks()
     task_index = next((i for i, t in enumerate(tasks) if t["id"] == task_id), None)
     if task_index is None:
-        raise HTTPException(status_code=404, detail="在文件删除过程中未找到任务。")
+        logger.error(f"删除文件时未找到任务 {task_id}")
+        raise HTTPException(status_code=404, detail="Task not found.")
 
-    task_audio_files = tasks[task_index].get("audio_files", [])
-    if not task_audio_files:
-        raise HTTPException(status_code=404, detail="此任务没有关联的音频文件。")
+    task_model = Task(**tasks[task_index])
+    if not task_model.audio_files:
+        logger.warning(f"任务 {task_id} 没有音频文件")
+        raise HTTPException(status_code=404, detail="Task has no audio files.")
 
-    deleted_files, not_found_files, failed_to_delete = [], [], []
+    # 验证所有要删除的文件ID是否存在
+    existing_file_ids = {f.id for f in task_model.audio_files}
+    invalid_file_ids = set(file_ids) - existing_file_ids
+    if invalid_file_ids:
+        logger.warning(f"请求删除的文件ID不存在：{invalid_file_ids}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file IDs: {list(invalid_file_ids)}"
+        )
 
-    for file_path_str in file_paths:
-        if file_path_str in task_audio_files:
-            try:
-                file_to_delete = Path(file_path_str).resolve()
-                if AUDIO_DIR.resolve() not in file_to_delete.parents:
-                    logger.warning(f"用户 {current_user.username} 尝试删除音频目录之外的文件: {file_path_str}")
-                    not_found_files.append(file_path_str)
-                    continue
-                
-                file_to_delete.unlink(missing_ok=True)
-                task_audio_files.remove(file_path_str)
-                deleted_files.append(file_path_str)
-                logger.info(f"已删除任务 {task_id} 的文件 {file_path_str}。")
-            except Exception as e:
-                logger.error(f"删除任务 {task_id} 的文件 {file_path_str} 时出错: {e}")
-                failed_to_delete.append(file_path_str)
-        else:
-            not_found_files.append(file_path_str)
+    # 准备删除操作
+    files_to_delete = [f for f in task_model.audio_files if f.id in file_ids]
+    files_to_keep = [f for f in task_model.audio_files if f.id not in file_ids]
+    deletion_results = []
+    failed_deletions = []
 
-    if not deleted_files:
-        raise HTTPException(status_code=404, detail="此任务未找到任何指定的文件。")
+    # 执行文件删除
+    for file in files_to_delete:
+        try:
+            file_path = Path(file.internal_path)
+            if file_path.is_file():
+                file_path.unlink()
+                deletion_results.append({
+                    "id": file.id,
+                    "filename": file.user_filename,
+                    "status": "success"
+                })
+                logger.info(f"成功删除文件：{file.user_filename} (ID: {file.id})")
+            else:
+                logger.warning(f"文件不存在于磁盘：{file.internal_path}")
+                deletion_results.append({
+                    "id": file.id,
+                    "filename": file.user_filename,
+                    "status": "file_not_found"
+                })
+        except Exception as e:
+            logger.error(f"删除文件 {file.internal_path} 失败: {str(e)}", exc_info=True)
+            failed_deletions.append({
+                "id": file.id,
+                "filename": file.user_filename,
+                "error": str(e)
+            })
 
-    tasks[task_index]["audio_files"] = task_audio_files
-    save_tasks(tasks)
+    # 更新任务数据
+    task_model.audio_files = files_to_keep
+    tasks[task_index] = jsonable_encoder(task_model)
     
-    response = {"msg": "删除过程已完成。", "deleted": deleted_files}
-    if not_found_files:
-        response["not_found"] = not_found_files
-    if failed_to_delete:
-        response["failed_to_delete"] = failed_to_delete
-        
-    return response
+    try:
+        save_tasks(tasks)
+        logger.info(f"已更新任务 {task_id} 的文件列表")
+    except Exception as e:
+        logger.error(f"保存任务数据时发生错误: {str(e)}", exc_info=True)
+        # 如果保存失败，尝试恢复已删除的文件
+        for result in deletion_results:
+            if result["status"] == "success":
+                file_to_restore = next(
+                    f for f in files_to_delete if f.id == result["id"]
+                )
+                logger.warning(f"正在尝试恢复已删除的文件：{file_to_restore.user_filename}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save task data after file deletion."
+        )
+
+    response_data = {
+        "message": "File deletion completed",
+        "results": deletion_results
+    }
+    
+    if failed_deletions:
+        response_data["failed"] = failed_deletions
+        return JSONResponse(
+            status_code=207,
+            content=response_data
+        )
+
+    return response_data
+
+
+@router.put("/tasks/{task_id}/files/{file_id}", response_model=AudioFile)
+def rename_audio_file(
+    file_id: str,
+    new_filename: str = Body(..., embed=True, alias="new_filename"),
+    task: dict = Depends(get_task_for_user),
+    current_user: User = Depends(get_current_user)
+):
+    task_id = task['id']
+    tasks = load_tasks()
+    task_index = next((i for i, t in enumerate(tasks) if t["id"] == task_id), None)
+    task_model = Task(**tasks[task_index])
+
+    file_to_rename = next((f for f in task_model.audio_files if f.id == file_id), None)
+    if not file_to_rename:
+        raise HTTPException(status_code=404, detail="File not found.")
+
+    file_to_rename.user_filename = new_filename
+    tasks[task_index] = jsonable_encoder(task_model)
+    save_tasks(tasks)
+
+    logger.info(f"用户 {current_user.username} 已将任务 {task_id} 的文件 {file_id} 重命名为 {new_filename}。")
+    return file_to_rename
+
+
+@router.get("/tasks/{task_id}/files/{file_identifier}")
+def get_audio_file(
+    file_identifier: str,
+    task: dict = Depends(get_task_for_user)
+):
+    logger.info(f"正在获取任务 {task['id']} 的文件 {file_identifier}。")
+    task_model = Task(**task)
+    
+    try:
+        found_file = next((f for f in task_model.audio_files if f.id == file_identifier or f.user_filename == file_identifier), None)
+
+        if not found_file:
+            logger.warning(f"未找到文件 {file_identifier}。")
+            raise HTTPException(status_code=404, detail="File not found.")
+
+        file_path = Path(found_file.internal_path)
+        if not file_path.is_file():
+            logger.error(f"服务器上未找到文件 {found_file.internal_path}。")
+            raise HTTPException(status_code=404, detail="File not found on server.")
+
+        logger.info(f"成功找到并返回文件 {found_file.user_filename}。")
+        return FileResponse(path=file_path, filename=found_file.user_filename, media_type='application/octet-stream')
+    except Exception as e:
+        logger.error(f"获取文件时发生错误: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error while retrieving file.")
 
 
 @router.get("/tasks/search/", response_model=List[Task])

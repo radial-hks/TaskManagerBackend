@@ -28,6 +28,13 @@ class Transcription(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
 
 
+class AudioFile(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_filename: str = Field(..., description="用户自定义的文件名")
+    internal_path: str = Field(..., description="服务器内部存储路径")
+    uploaded_at: datetime = Field(default_factory=datetime.now)
+
+
 class TaskBase(BaseModel):
     """
     任务模型的基础部分，包含创建和读取时共有的字段。
@@ -56,7 +63,7 @@ class Task(TaskBase):
     owner: str
     status: TaskStatus = TaskStatus.PENDING
     created_at: str
-    audio_files: Optional[List[str]] = []
+    audio_files: Optional[List[AudioFile]] = []
     transcription: Optional[Transcription] = None
 
 
@@ -72,4 +79,3 @@ class TaskUpdate(BaseModel):
     tags: Optional[List[str]] = None
     # user_id: Optional[str] = None  # 通常不应允许直接更新，除非有特定权限控制
     transcription: Optional[Transcription] = None
-    audio_files: Optional[List[str]] = None
