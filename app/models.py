@@ -65,6 +65,7 @@ class Task(TaskBase):
     created_at: str
     audio_files: Optional[List[AudioFile]] = []
     transcription: Optional[Transcription] = None
+    
 
 
 class TaskUpdate(BaseModel):

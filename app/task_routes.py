@@ -57,16 +57,49 @@ async def get_task_for_user(task_id: str, current_user: User = Depends(get_curre
 
 
 @router.get("/tasks", response_model=List[Task])
-def get_tasks(current_user: User = Depends(get_current_user), skip: int = 0, limit: int = 100):
-    logger.info(f"用户 {current_user.username} 正在获取任务列表，skip={skip}, limit={limit}。")
+def get_tasks(
+    current_user: User = Depends(get_current_user), 
+    skip: int = 0, 
+    limit: int = 100,
+    sort_by: Optional[str] = Query('created_at', enum=['title', 'priority', 'status', 'created_at']),
+    sort_order: Optional[str] = Query('asc', enum=['asc', 'desc'])
+):
+    logger.info(f"用户 {current_user.username} 正在获取任务列表，skip={skip}, limit={limit}, sort_by={sort_by}, sort_order={sort_order}。")
     tasks = load_tasks()
+
     if current_user.role == "admin":
+        accessible_tasks = tasks
         logger.info(f"管理员 {current_user.username} 正在获取所有任务。")
-        return [Task(**t) for t in tasks[skip : skip + limit]]
+    else:
+        accessible_tasks = [t for t in tasks if t.get("user_id") == current_user.id or t.get("owner") == current_user.username]
+        logger.info(f"用户 {current_user.username} 获取到 {len(accessible_tasks)} 个任务。")
+
+    # 排序逻辑
+    reverse = sort_order == 'desc'
     
-    user_tasks = [t for t in tasks if t.get("user_id") == current_user.id or t.get("owner") == current_user.username]
-    logger.info(f"用户 {current_user.username} 获取到 {len(user_tasks)} 个任务。")
-    return [Task(**t) for t in user_tasks[skip : skip + limit]]
+    # 对于 priority，我们可能需要一个映射来排序
+    priority_map = {'high': 3, 'medium': 2, 'low': 1}
+
+    def sort_key(task):
+        if sort_by == 'priority':
+            return priority_map.get(task.get('priority', '').lower(), 0)
+        # 对于其他字段，直接返回值
+        return task.get(sort_by, '')
+
+    try:
+        sorted_tasks = sorted(accessible_tasks, key=sort_key, reverse=reverse)
+    except TypeError:
+        # 处理混合类型排序可能引发的TypeError，例如比较 str 和 None
+        # 一个简单的处理方法是把None值替换为一个可比较的默认值
+        def safe_sort_key(task):
+            val = task.get(sort_by)
+            if val is None:
+                return '' if isinstance(task.get(sort_by), str) else 0
+            return val
+        sorted_tasks = sorted(accessible_tasks, key=safe_sort_key, reverse=reverse)
+
+    paginated_tasks = sorted_tasks[skip : skip + limit]
+    return [Task(**t) for t in paginated_tasks]
 
 
 @router.get("/tasks/{task_id}", response_model=Task)
