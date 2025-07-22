@@ -12,8 +12,9 @@
       "转录",
       "会议"
     ],
-    "audio_file": "recordings/test-uuid-1.wav",
-    "created_at": "2025-07-13T08:00:00"
+    "created_at": "2025-07-13T08:00:00",
+    "audio_files": [],
+    "transcription": null
   },
   {
     "id": "test-uuid-2",
@@ -28,8 +29,9 @@
       "客户",
       "分析"
     ],
-    "audio_file": null,
-    "created_at": "2025-07-13T09:30:00"
+    "created_at": "2025-07-13T09:30:00",
+    "audio_files": [],
+    "transcription": null
   },
   {
     "id": "ec8dba0e-8ef6-4012-b957-12c2b5ec6adb",
@@ -41,20 +43,81 @@
     "user_id": "radial",
     "category": "未分类",
     "tags": [],
-    "audio_file": null,
-    "created_at": "2025-07-15T05:39:24.600535"
+    "created_at": "2025-07-15T05:39:24.600535",
+    "audio_files": [],
+    "transcription": null
   },
   {
     "id": "41ade9ef-540f-4970-b3db-c6717356151e",
     "title": "string",
-    "description": "",
+    "description": "ssssssssssssssssssssssssssssssssssssssssssss",
     "priority": "medium",
     "status": "pending",
     "owner": "radial",
     "user_id": "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
     "category": "未分类",
     "tags": [],
-    "audio_file": null,
-    "created_at": "2025-07-15T05:42:07.916753"
+    "created_at": "2025-07-15T05:42:07.916753",
+    "audio_files": [
+      {
+        "id": "b7d20f34-5c8f-4870-b4e3-16bdb2e8d34f",
+        "user_filename": "b7d20f34-5c8f-4870-b4e3-16bdb2e8d34f.jpg",
+        "internal_path": "recordings/41ade9ef-540f-4970-b3db-c6717356151e_b7d20f34-5c8f-4870-b4e3-16bdb2e8d34f.jpg",
+        "uploaded_at": "2025-07-15T05:42:07.916753"
+      }
+    ],
+    "transcription": null
+  },
+  {
+    "title": "测试_1",
+    "description": "测试_1",
+    "priority": "string",
+    "category": "string",
+    "tags": [
+      "string"
+    ],
+    "user_id": "string",
+    "id": "99214565-f73e-442d-884a-3b04f893b14c",
+    "owner": "radial",
+    "status": "pending",
+    "created_at": "2025-07-17T12:02:32.254063",
+    "audio_files": [
+      {
+        "id": "5e26135c-1f9f-42b6-a5c2-f6dd04742190",
+        "user_filename": "5e26135c-1f9f-42b6-a5c2-f6dd04742190.jpg",
+        "internal_path": "recordings/99214565-f73e-442d-884a-3b04f893b14c_5e26135c-1f9f-42b6-a5c2-f6dd04742190.jpg",
+        "uploaded_at": "2025-07-17T12:02:32.254063"
+      }
+    ],
+    "transcription": {
+      "raw_text": "测试_1",
+      "optimized_text": "测试_1212",
+      "created_at": "2025-07-17T12:03:00.642000Z",
+      "updated_at": "2025-07-17T12:03:00.642000Z"
+    }
+  },
+  {
+    "title": "11",
+    "description": "11",
+    "priority": "medium",
+    "category": "未分类",
+    "tags": [],
+    "user_id": "string",
+    "id": "b5a908d5-eb68-4445-a260-99059660ef65",
+    "owner": "radial",
+    "status": "pending",
+    "created_at": "2025-07-17T13:03:27.656788",
+    "audio_files": [
+      {
+        "id": "2ef13502-b39e-444c-96f4-cfc3f1d4a045",
+        "user_filename": "随便上传.lock",
+        "internal_path": "recordings/b5a908d5-eb68-4445-a260-99059660ef65_6adf71f3-2bc4-4bc4-963f-8d739fef4cbf.lock",
+        "uploaded_at": "2025-07-22T14:29:52.428327"
+      }
+    ],
+    "transcription": null,
+    "audio_import_status": "completed",
+    "audio_transcription_status": "not_started",
+    "content_processing_status": "not_started"
   }
 ]

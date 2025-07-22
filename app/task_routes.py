@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, Form, Body
 from fastapi.responses import FileResponse, JSONResponse
-from .models import Task, User, TaskCreate, TaskUpdate, TaskStatus, AudioFile
+from .models import Task, User, TaskCreate, TaskUpdate, TaskStatus, AudioFile, AudioImportStatus
 from .utils import generate_id, now_iso
 from .storage import load_tasks, save_tasks
 from .auth import get_current_user
@@ -178,57 +178,74 @@ def upload_audio(
     task_id = task['id']
     logger.info(f"用户 {current_user.username} 正在为任务 {task_id} 上传文件。")
 
-    if user_filenames and len(user_filenames) != len(files):
-        raise HTTPException(status_code=400, detail="The number of filenames does not match the number of files.")
-
     tasks = load_tasks()
     task_index = next((i for i, t in enumerate(tasks) if t["id"] == task_id), None)
     if task_index is None:
         raise HTTPException(status_code=404, detail="Task not found during upload.")
 
+    # 更新任务状态为 IN_PROGRESS
     task_model = Task(**tasks[task_index])
-    newly_added_files = []
-
-    for i, file in enumerate(files):
-        # 检查文件大小
-        file.file.seek(0, 2)
-        file_size = file.file.tell()
-        file.file.seek(0)  # 重置文件指针
-        if file_size > MAX_UPLOAD_SIZE:
-            logger.warning(
-                f"用户 {current_user.username} 尝试上传过大文件: {file.filename}, "
-                f"大小: {file_size} 字节, 限制: {MAX_UPLOAD_SIZE} 字节。"
-            )
-            raise HTTPException(
-                status_code=413,
-                detail=f"文件 '{file.filename}' 过大，超过了 50MB 的限制。"
-            )
-
-        ext = Path(file.filename).suffix
-        internal_filename = f"{task_id}_{uuid.uuid4()}{ext}"
-        dest_path = AUDIO_DIR / internal_filename
-
-        try:
-            with dest_path.open("wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-        except Exception as e:
-            logger.error(f"保存文件失败: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to save file {file.filename}.")
-
-        user_filename = user_filenames[i] if user_filenames and user_filenames[i] else file.filename
-        
-        audio_file_model = AudioFile(
-            user_filename=user_filename,
-            internal_path=str(dest_path)
-        )
-        task_model.audio_files.append(audio_file_model)
-        newly_added_files.append(audio_file_model)
-
+    task_model.audio_import_status = AudioImportStatus.IN_PROGRESS
     tasks[task_index] = jsonable_encoder(task_model)
     save_tasks(tasks)
 
-    logger.info(f"为任务 {task_id} 成功上传 {len(newly_added_files)} 个文件。")
-    return newly_added_files
+    try:
+        if user_filenames and len(user_filenames) != len(files):
+            raise HTTPException(status_code=400, detail="The number of filenames does not match the number of files.")
+
+        newly_added_files = []
+
+        for i, file in enumerate(files):
+            # 检查文件大小
+            file.file.seek(0, 2)
+            file_size = file.file.tell()
+            file.file.seek(0)  # 重置文件指针
+            if file_size > MAX_UPLOAD_SIZE:
+                logger.warning(
+                    f"用户 {current_user.username} 尝试上传过大文件: {file.filename}, "
+                    f"大小: {file_size} 字节, 限制: {MAX_UPLOAD_SIZE} 字节。"
+                )
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"文件 '{file.filename}' 过大，超过了 50MB 的限制。"
+                )
+
+            ext = Path(file.filename).suffix
+            internal_filename = f"{task_id}_{uuid.uuid4()}{ext}"
+            dest_path = AUDIO_DIR / internal_filename
+
+            try:
+                with dest_path.open("wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+            except Exception as e:
+                logger.error(f"保存文件失败: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to save file {file.filename}.")
+
+            user_filename = user_filenames[i] if user_filenames and user_filenames[i] else file.filename
+            
+            audio_file_model = AudioFile(
+                user_filename=user_filename,
+                internal_path=str(dest_path)
+            )
+            task_model.audio_files.append(audio_file_model)
+            newly_added_files.append(audio_file_model)
+
+        # 更新任务状态为 COMPLETED
+        task_model.audio_import_status = AudioImportStatus.COMPLETED
+        tasks[task_index] = jsonable_encoder(task_model)
+        save_tasks(tasks)
+
+        logger.info(f"为任务 {task_id} 成功上传 {len(newly_added_files)} 个文件。")
+        return newly_added_files
+
+    except Exception as e:
+        # 更新任务状态为 FAILED
+        task_model.audio_import_status = AudioImportStatus.FAILED
+        tasks[task_index] = jsonable_encoder(task_model)
+        save_tasks(tasks)
+        logger.error(f"为任务 {task_id} 上传文件时出错: {e}", exc_info=True)
+        # 重新抛出异常，以便 FastAPI 处理
+        raise e
 
 
 @router.delete("/tasks/{task_id}/files")

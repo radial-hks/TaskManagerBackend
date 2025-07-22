@@ -15,6 +15,27 @@ class TaskStatus(str, Enum):
     CANCELED = "canceled"                  # 已被取消
     ARCHIVED = "archived"                  # 已归档，不再显示在默认列表中
 
+
+class AudioImportStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class AudioTranscriptionStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ContentProcessingStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     username: str
@@ -65,6 +86,9 @@ class Task(TaskBase):
     created_at: str
     audio_files: Optional[List[AudioFile]] = []
     transcription: Optional[Transcription] = None
+    audio_import_status: Optional[AudioImportStatus] = AudioImportStatus.NOT_STARTED
+    audio_transcription_status: Optional[AudioTranscriptionStatus] = AudioTranscriptionStatus.NOT_STARTED
+    content_processing_status: Optional[ContentProcessingStatus] = ContentProcessingStatus.NOT_STARTED
     
 
 
@@ -80,3 +104,6 @@ class TaskUpdate(BaseModel):
     tags: Optional[List[str]] = None
     # user_id: Optional[str] = None  # 通常不应允许直接更新，除非有特定权限控制
     transcription: Optional[Transcription] = None
+    audio_import_status: Optional[AudioImportStatus] = None
+    audio_transcription_status: Optional[AudioTranscriptionStatus] = None
+    content_processing_status: Optional[ContentProcessingStatus] = None
