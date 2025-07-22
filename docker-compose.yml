@@ -14,5 +14,6 @@ services:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/apiyy.jay-zjy.cn.pem:/etc/nginx/certs/apiyy.jay-zjy.cn.pem
       - ./nginx/apiyy.jay-zjy.cn.key:/etc/nginx/certs/apiyy.jay-zjy.cn.key
+      - ./recordings:/app/recordings
     depends_on:
       - app
