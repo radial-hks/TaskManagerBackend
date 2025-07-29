@@ -367,8 +367,34 @@ apple 40</textarea>
 		<script src="wsconnecter.js" charset="utf-8"></script>
 		<script src="main.js" charset="utf-8"></script>
 		
-
-
-				
+		<!-- Dify Chatbot Configuration -->
+		<script>
+			window.difyChatbotConfig = {
+				token: 'vvwpEKadl1Sy0BG6',
+				baseUrl: 'http://yuyin.jay-zjy.cn',
+				systemVariables: {
+					// user_id: 'YOU CAN DEFINE USER ID HERE',
+					// conversation_id: 'YOU CAN DEFINE CONVERSATION ID HERE, IT MUST BE A VALID UUID',
+				},
+				userVariables: {
+					// avatar_url: 'YOU CAN DEFINE USER AVATAR URL HERE',
+					// name: 'YOU CAN DEFINE USER NAME HERE',
+				},
+			}
+		</script>
+		<script
+			src="http://yuyin.jay-zjy.cn/embed.min.js"
+			id="vvwpEKadl1Sy0BG6"
+			defer>
+		</script>
+		<style>
+			#dify-chatbot-bubble-button {
+				background-color: #1C64F2 !important;
+			}
+			#dify-chatbot-bubble-window {
+				width: 40rem !important;
+				height: 80rem !important;
+			}
+		</style>
 	</body>
 </html>
