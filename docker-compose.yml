@@ -15,5 +15,6 @@ services:
       - ./nginx/apiyy.jay-zjy.cn.pem:/etc/nginx/certs/apiyy.jay-zjy.cn.pem
       - ./nginx/apiyy.jay-zjy.cn.key:/etc/nginx/certs/apiyy.jay-zjy.cn.key
       - ./recordings:/app/recordings
+      - ./static:/app/static
     depends_on:
       - app
