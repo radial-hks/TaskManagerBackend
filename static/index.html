@@ -272,7 +272,7 @@
 
 <div class="container">
 			<div class="header">
-				<h1>🎤 FunASR Demo 测试</h1>
+				<h1>🎤 FunASR ZC TOOl </h1>
 			</div>
 			
 			<div class="content">
@@ -347,31 +347,199 @@ apple 40</textarea>
 					</div>
 				</div>
 				<div class="card">
-					<div class="card-title">📝 识别结果</div>
-					<div class="form-group">
-						<textarea rows="10" id="varArea" readonly="true" class="textarea" placeholder="语音识别结果将在这里显示..."></textarea>
-					</div>
-					<div id="info_div" class="status-info">请点击连接按钮开始使用</div>
-				</div>
-				<div class="card">
 					<div class="card-title">🎛️ 控制面板</div>
 					<div class="button-group">
 						<button id="btnConnect" class="btn btn-primary">🔗 连接服务器</button>
 						<button id="btnRecord" class="btn btn-success">▶️ 开始录音</button>
 					</div>
+					<div id="info_div" class="status-info">请点击连接按钮开始使用</div>
 					<audio id="audio_record" type="audio/wav" controls class="audio-player"></audio>
+				</div>
+				
+				<div class="card">
+					<div class="card-title">📝 识别结果</div>
+					<div class="form-group" style="position: relative;">
+						<textarea rows="7" id="varArea" readonly="true" class="textarea" placeholder="语音识别结果将在这里显示..." style="height: 180px;"></textarea>
+						<button class="copy-btn" onclick="copyToClipboard('varArea')" title="复制识别结果" style="position: absolute; top: 10px; right: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 5px 8px; cursor: pointer;">📋</button>
+					</div>
+				</div>
+				
+				<div class="card">
+					<div class="card-title">🤖 AI 总结</div>
+					
+					<!-- 提示词编辑区域 -->
+					<div class="form-group" style="position: relative;">
+						<label class="form-label">提示词模板：</label>
+						<textarea rows="6" id="promptTemplate" class="textarea prompt-template" placeholder="请输入提示词模板..." style="height: 140px; resize: vertical; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; color: #2c3e50; line-height: 1.6; font-weight: 400; letter-spacing: 0.3px;">请对以下内容进行总结，提取关键信息、要点和结论：
+1. 主要讨论内容
+2. 重要决策或结论
+3. 行动项目和责任人
+4. 后续跟进事项
+请用简洁明了的语言进行总结。</textarea>
+						<button class="copy-btn" onclick="copyToClipboard('promptTemplate')" title="复制提示词" style="position: absolute; top: 35px; right: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 5px 8px; cursor: pointer;">📋</button>
+					</div>
+					
+					<div class="button-group">
+						<button id="btnAISummary" class="btn btn-primary" onclick="generateAISummary()">🧠 生成AI总结</button>
+					</div>
+					
+					<!-- AI总结结果区域 -->
+					<div class="form-group" style="position: relative;">
+						<label class="form-label">AI总结结果：</label>
+						<div id="aiSummaryResult" class="markdown-content auto-height" style="min-height: 100px; max-height: 500px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0.75rem; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333;">AI总结结果将在这里显示...</div>
+						<button class="copy-btn" onclick="copyMarkdownContent()" title="复制总结结果" style="position: absolute; top: 35px; right: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 5px 8px; cursor: pointer;">📋</button>
+					</div>
+					<div id="ai_info_div" class="status-info" style="display:none;">正在生成AI总结...</div>
 				</div>
 			</div>
 		</div>
 
+		<script src="marked.min.js"></script>
 		<script src="wsconnecter.js" charset="utf-8"></script>
 		<script src="main.js" charset="utf-8"></script>
+		
+		<script>
+			// 复制到剪贴板功能
+			function copyToClipboard(elementId) {
+				const element = document.getElementById(elementId);
+				if (element) {
+					element.select();
+					document.execCommand('copy');
+					
+					// 显示复制成功提示
+					const originalTitle = event.target.title;
+					event.target.title = '已复制！';
+					setTimeout(() => {
+						event.target.title = originalTitle;
+					}, 1000);
+				}
+			}
+			
+			// 复制markdown内容功能
+			function copyMarkdownContent() {
+				const element = document.getElementById('aiSummaryResult');
+				if (element && element.dataset.rawContent) {
+					// 创建临时textarea来复制原始markdown文本
+					const tempTextarea = document.createElement('textarea');
+					tempTextarea.value = element.dataset.rawContent;
+					document.body.appendChild(tempTextarea);
+					tempTextarea.select();
+					document.execCommand('copy');
+					document.body.removeChild(tempTextarea);
+					
+					// 显示复制成功提示
+					const originalTitle = event.target.title;
+					event.target.title = '已复制！';
+					setTimeout(() => {
+						event.target.title = originalTitle;
+					}, 1000);
+				}
+			}
+			
+			// 自适应高度调整函数
+			function adjustAutoHeight(element) {
+				if (!element || !element.classList.contains('auto-height')) return;
+				
+				// 临时设置高度为auto来获取内容高度
+				const originalHeight = element.style.height;
+				element.style.height = 'auto';
+				const scrollHeight = element.scrollHeight;
+				
+				// 获取最小和最大高度
+				const minHeight = parseInt(getComputedStyle(element).minHeight) || 100;
+				const maxHeight = parseInt(getComputedStyle(element).maxHeight) || 500;
+				
+				// 计算合适的高度
+				const newHeight = Math.min(Math.max(scrollHeight + 20, minHeight), maxHeight);
+				
+				// 设置新高度
+				element.style.height = newHeight + 'px';
+				
+				// 如果内容超出最大高度，显示滚动条
+				if (scrollHeight > maxHeight) {
+					element.style.overflowY = 'auto';
+				} else {
+					element.style.overflowY = 'hidden';
+				}
+			}
+			
+			// AI总结功能
+			async function generateAISummary() {
+				const recognitionText = document.getElementById('varArea').value;
+				const summaryResult = document.getElementById('aiSummaryResult');
+				const aiInfoDiv = document.getElementById('ai_info_div');
+				const btnAISummary = document.getElementById('btnAISummary');
+				
+				const promptTemplate = document.getElementById('promptTemplate').value;
+				
+				if (!recognitionText.trim()) {
+					alert('请先进行语音识别，获取识别结果后再生成总结');
+					return;
+				}
+				
+				// 显示加载状态
+				aiInfoDiv.style.display = 'block';
+				aiInfoDiv.textContent = '正在生成AI总结...';
+				btnAISummary.disabled = true;
+				btnAISummary.textContent = '⏳ 生成中...';
+				summaryResult.innerHTML = '<p style="color: #6c757d;">正在生成AI总结，请稍候...</p>';
+				adjustAutoHeight(summaryResult);
+				
+				try {
+					const requestData = {
+						inputs: {
+							RawText: recognitionText,
+							TemplateText: promptTemplate
+						},
+						response_mode: "blocking",
+						user: "difyuser"
+					};
+					
+					const response = await fetch('https://yuyin.jay-zjy.cn/v1/workflows/run', {
+						method: 'POST',
+						headers: {
+							'Authorization': 'Bearer app-CjoPwYU2mDquKWcVKJb8LiPV',
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(requestData)
+					});
+					
+					if (!response.ok) {
+						throw new Error(`HTTP error! status: ${response.status}`);
+					}
+					
+					const result = await response.json();
+					
+					if (result.data && result.data.outputs && result.data.outputs.output) {
+						const markdownText = result.data.outputs.output;
+						// 存储原始markdown文本用于复制
+						summaryResult.dataset.rawContent = markdownText;
+						// 渲染markdown为HTML
+						summaryResult.innerHTML = marked.parse(markdownText);
+						// 调整高度以适应内容
+						setTimeout(() => adjustAutoHeight(summaryResult), 100);
+						aiInfoDiv.textContent = `✅ 总结生成完成！耗时: ${result.data.elapsed_time?.toFixed(2) || 'N/A'}秒`;
+					} else {
+						throw new Error('API返回数据格式异常');
+					}
+					
+				} catch (error) {
+					console.error('AI总结生成失败:', error);
+					aiInfoDiv.textContent = `❌ 生成失败: ${error.message}`;
+					summaryResult.innerHTML = '<p style="color: #dc3545;">生成失败，请稍后重试</p>';
+					adjustAutoHeight(summaryResult);
+				} finally {
+					btnAISummary.disabled = false;
+					btnAISummary.textContent = '🧠 生成AI总结';
+				}
+			}
+		</script>
 		
 		<!-- Dify Chatbot Configuration -->
 		<script>
 			window.difyChatbotConfig = {
 				token: 'vvwpEKadl1Sy0BG6',
-				baseUrl: 'https://yuyin.jay-zjy.cn',
+				baseUrl: 'http://yuyin.jay-zjy.cn',
 				systemVariables: {
 					// user_id: 'YOU CAN DEFINE USER ID HERE',
 					// conversation_id: 'YOU CAN DEFINE CONVERSATION ID HERE, IT MUST BE A VALID UUID',
@@ -383,7 +551,7 @@ apple 40</textarea>
 			}
 		</script>
 		<script
-			src="https://yuyin.jay-zjy.cn/embed.min.js"
+			src="http://yuyin.jay-zjy.cn/embed.min.js"
 			id="vvwpEKadl1Sy0BG6"
 			defer>
 		</script>
@@ -395,6 +563,176 @@ apple 40</textarea>
 				width: 40rem !important;
 				height: 80rem !important;
 			}
+			
+			/* 提示词模板样式优化 */
+			.prompt-template {
+				transition: all 0.3s ease;
+				border: 2px solid #e9ecef;
+				background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+				box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+			}
+			
+			.prompt-template:focus {
+				border-color: #007bff;
+				box-shadow: 0 0 0 3px rgba(0,123,255,0.1), 0 4px 8px rgba(0,0,0,0.1);
+				outline: none;
+				background: #ffffff;
+			}
+			
+			.prompt-template::placeholder {
+				color: #6c757d;
+				font-style: italic;
+				opacity: 0.8;
+			}
+			
+			/* 识别结果样式优化 */
+			.recognition-result {
+				font-size: 14px;
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+				color: #495057;
+				line-height: 1.6;
+				font-weight: 400;
+				letter-spacing: 0.3px;
+				transition: all 0.3s ease;
+				border: 2px solid #e9ecef;
+				background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+				box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+			}
+			
+			.recognition-result:focus {
+				border-color: #28a745;
+				box-shadow: 0 0 0 3px rgba(40,167,69,0.1), 0 4px 8px rgba(0,0,0,0.1);
+				outline: none;
+				background: #ffffff;
+			}
+			
+			.recognition-result::placeholder {
+				color: #6c757d;
+				font-style: italic;
+				opacity: 0.7;
+			}
+			
+			/* AI总结结果样式优化 */
+			.ai-summary-result {
+				font-size: 14px;
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+				color: #343a40;
+				line-height: 1.7;
+				font-weight: 400;
+				letter-spacing: 0.2px;
+				border: 2px solid #e9ecef;
+				background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+				box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+				border-radius: 6px;
+				transition: all 0.3s ease;
+			}
+			
+			.ai-summary-result:hover {
+				box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+				border-color: #dee2e6;
+			}
+			
+			/* Markdown内容样式 */
+			.markdown-content h1,
+			.markdown-content h2,
+			.markdown-content h3,
+			.markdown-content h4,
+			.markdown-content h5,
+			.markdown-content h6 {
+				margin-top: 1.5em;
+				margin-bottom: 0.5em;
+				font-weight: 600;
+				color: #2c3e50;
+			}
+			
+			.markdown-content h1 { font-size: 1.5em; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+			.markdown-content h2 { font-size: 1.3em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+			.markdown-content h3 { font-size: 1.2em; }
+			.markdown-content h4 { font-size: 1.1em; }
+			
+			.markdown-content p {
+				margin-bottom: 1em;
+				line-height: 1.6;
+			}
+			
+			.markdown-content ul,
+			.markdown-content ol {
+				margin-bottom: 1em;
+				padding-left: 2em;
+			}
+			
+			.markdown-content li {
+				margin-bottom: 0.5em;
+				line-height: 1.5;
+			}
+			
+			.markdown-content strong {
+				font-weight: 600;
+				color: #2c3e50;
+			}
+			
+			.markdown-content em {
+				font-style: italic;
+				color: #555;
+			}
+			
+			.markdown-content code {
+				background-color: #f8f9fa;
+				border: 1px solid #e9ecef;
+				border-radius: 3px;
+				padding: 2px 4px;
+				font-family: 'Courier New', monospace;
+				font-size: 0.9em;
+			}
+			
+			.markdown-content pre {
+				background-color: #f8f9fa;
+				border: 1px solid #e9ecef;
+				border-radius: 5px;
+				padding: 1em;
+				overflow-x: auto;
+				margin-bottom: 1em;
+			}
+			
+			.markdown-content pre code {
+				background: none;
+				border: none;
+				padding: 0;
+			}
+			
+			.markdown-content blockquote {
+				border-left: 4px solid #007bff;
+				margin: 1em 0;
+				padding: 0.5em 1em;
+				background-color: #f8f9fa;
+				color: #555;
+			}
+			
+			.markdown-content table {
+				border-collapse: collapse;
+				width: 100%;
+				margin-bottom: 1em;
+			}
+			
+			.markdown-content th,
+			.markdown-content td {
+				border: 1px solid #dee2e6;
+				padding: 0.5em;
+				text-align: left;
+			}
+			
+			.markdown-content th {
+				background-color: #f8f9fa;
+				font-weight: 600;
+			}
+			
+			.markdown-content hr {
+				border: none;
+				border-top: 2px solid #eee;
+				margin: 2em 0;
+			}
 		</style>
+		
+
 	</body>
 </html>
